@@ -1,12 +1,12 @@
 import os.path
 import pickle
 import platform
+import socket
 import time
 from typing import Dict, List, Any
 from urllib.parse import urlparse
 
 import pyotp
-from bokeh.driving import force
 from loguru import logger
 from pydantic import BaseModel
 from selenium import webdriver
@@ -15,6 +15,7 @@ from selenium.webdriver.edge.options import Options
 from selenium.webdriver.edge.service import Service
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+
 
 class ATrustLoginStorage(BaseModel):
     cookies: List[Dict[str, Any]]
@@ -277,11 +278,29 @@ class ATrustLogin:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
-def main(portal_address, username, password, totp_key=None, cookie_tid=None, cookie_sig=None, keepalive=180, data_dir="./data", interactive=False):
+    @staticmethod
+    def wait_for_port(port, host='localhost'):
+        while True:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(1)
+                try:
+                    s.connect((host, port))
+                    logger.info(f"Detected aTrust is listening on port {port}")
+                    s.close()
+                    break
+                except (socket.timeout, ConnectionRefusedError):
+                    logger.info(f"aTrust Port {port} is not yet being listened on. Waiting for aTrust start ...")
+                    ATrustLogin.delay_loading()
+
+def main(portal_address, username, password, totp_key=None, cookie_tid=None, cookie_sig=None, keepalive=180, data_dir="./data", interactive=False, wait_atrust=True):
     logger.info("Opening Web Browser")
+
+    if wait_atrust:
+        ATrustLogin.wait_for_port(54631)
 
     # 创建ATrustLogin对象
     at = ATrustLogin(data_dir=data_dir, portal_address=portal_address, cookie_tid=cookie_tid, cookie_sig=cookie_sig, interactive=interactive)
+
     at.init()
 
     while True:
