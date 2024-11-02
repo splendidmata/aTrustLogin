@@ -1,2 +1,4 @@
 loguru
 fire
+pydantic
+pyotp

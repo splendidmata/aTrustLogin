@@ -1,7 +1,13 @@
 import os.path
+import pickle
 import time
+from typing import Dict, List, Any
+from urllib.parse import urlparse
 
+import pyotp
+from bokeh.driving import force
 from loguru import logger
+from pydantic import BaseModel
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.edge.options import Options
@@ -9,17 +15,31 @@ from selenium.webdriver.edge.service import Service
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+class ATrustLoginStorage(BaseModel):
+    cookies: List[Dict[str, Any]]
+    local_storage: Dict[str, Any]
+
 class ATrustLogin:
-    def __init__(self, data_dir="data"):
+    def __init__(self, portal_address, data_dir="data", cookie_tid=None, cookie_sig=None):
         if not os.path.exists("data"):
             os.makedirs("data", exist_ok=True)
+        self.data_dir = data_dir
+        self.portal_address = portal_address
+        self.portal_host = urlparse(portal_address).hostname
+        self.cookie_tid = cookie_tid
+        self.cookie_sig = cookie_sig
 
         # 配置Edge Driver选项
         self.options = Options()
-        self.options.add_argument(f'user-data-dir="{data_dir}"')
+
+        # self.options.add_argument(f'--user-data-dir="{data_dir}"')
+        self.options.add_argument(f'--profile-directory=ATrustLogin')
         # options.add_argument("--start-maximized")
         self.options.add_argument("--ignore-certificate-errors")
         self.options.add_argument("--ignore-ssl-errors")
+        self.options.add_argument("--lang=zh-CN")
+
+        self.options.add_experimental_option("prefs", {"intl.accept_languages": "zh-CN"})
 
         # 初始化Edge Driver
         service = Service()
@@ -27,18 +47,21 @@ class ATrustLogin:
         self.wait = WebDriverWait(self.driver, 10)
 
     # 打开默认的portal地址并等待sangfor_main_auth_container出现
-    def open_portal(self, portal_address):
-        self.driver.get(portal_address)
+    def open_portal(self):
+        self.driver.get(self.portal_address)
 
         # 使用显式等待sangfor_main_auth_container元素出现
         self.wait.until(EC.presence_of_element_located((By.ID, "sangfor_main_auth_container")))
         self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "login-panel")))
         self.wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
 
-        time.sleep(1)
+    @staticmethod
+    def delay_input():
+        time.sleep(0.5)
 
-    def delay_input(self):
-        time.sleep(1)
+    @staticmethod
+    def delay_loading():
+        time.sleep(5)
 
     # 递归查找具有指定placeholder的前两个非hidden类型的input框
     def find_input_fields(self, element, inputs_found=None):
@@ -66,6 +89,14 @@ class ATrustLogin:
 
     # 输入用户名和密码
     def enter_credentials(self, username, password):
+        try:
+            element = self.driver.find_element(By.XPATH, "//div[contains(@class, 'server-name') and contains(text(), '本地密码')]")
+            if element.is_displayed():
+                self.delay_input()
+                element.click()
+        except:
+            pass
+
         # 找到包含ID=sangfor_main_auth_container的div
         main_auth_div = self.driver.find_element(By.ID, "sangfor_main_auth_container")
 
@@ -108,11 +139,101 @@ class ATrustLogin:
                 return
         logger.info("未找到符合条件的登录按钮")
 
-    def login(self, portal_address, username, password, totp_key):
-        self.open_portal(portal_address=portal_address)
+    def load_storage(self):
+        # 从pickle文件中加载存储的数据
+        try:
+            if os.path.exists(os.path.join(self.data_dir, "ATrustLoginStorage.pkl")):
+                with open(os.path.join(self.data_dir, "ATrustLoginStorage.pkl"), "rb") as f:
+                    data = pickle.load(f)
+                    # 从cookies中加载cookie
+                    for cookie in data.cookies:
+                        self.driver.delete_cookie(cookie['name'])
+                        self.driver.add_cookie(cookie)
+                    # 从local_storage中加载local storage
+                    for key, value in data.local_storage.items():
+                        self.driver.execute_script(f"window.localStorage.setItem('{key}', '{value}')")
+                    logger.info("Loaded storage data")
+        except FileNotFoundError:
+            logger.info("未找到存储的数据")
+
+        self.set_cli_cookie(force=False)
+
+    def set_cli_cookie(self, force=False):
+        if force or not self.driver.get_cookie("tid"):
+            self.driver.delete_cookie("tid")
+            self.driver.add_cookie({
+                "name": "tid",
+                "value": self.cookie_tid,
+                "domain": self.portal_host,
+                "path": "/"
+            })
+
+        if force or not self.driver.get_cookie("tid.sig"):
+            self.driver.delete_cookie("tid.sig")
+            self.driver.add_cookie({
+                "name": "tid.sig",
+                "value": self.cookie_sig,
+                "domain": self.portal_host,
+                "path": "/"
+            })
+
+    def login(self, username, password, totp_key, **kwargs):
+        self.open_portal()
+        self.delay_loading()
+
+        self.load_storage()
+        if self.is_logged():
+            logger.info("Already logged in")
+            return True
+
         self.enter_credentials(username=username, password=password)
         self.delay_input()
         self.click_login_button()
+
+        logger.info("Performed basic login action")
+
+        self.delay_loading()
+        if "图形校验码" in self.driver.page_source:
+            if 'is_retried' not in kwargs:
+                self.set_cli_cookie(force=True)
+                self.driver.refresh()
+                self.login( username, password, totp_key, is_retried=True)
+                return
+            else:
+                logger.warning("Need to handle captcha, press any key to continue")
+                input()
+
+        if "TOTP" in self.driver.page_source and "二次认证" in self.driver.page_source:
+            if totp_key is not None:
+                totp = pyotp.TOTP(totp_key)
+                totp_code = totp.now()
+
+                logger.info(f"TOTP code: {totp_code}")
+                totp_input = self.driver.find_element(By.XPATH, "//input[contains(@class, 'totp')]")
+
+                self.wait.until(EC.element_to_be_clickable(totp_input)).click()
+                self.delay_input()
+                totp_input.send_keys(totp_code)
+
+                submit_button = self.driver.find_element(By.CSS_SELECTOR, "button[type='submit'], input[type='submit']")
+                self.wait.until(EC.element_to_be_clickable(submit_button))
+                self.delay_input()
+                submit_button.click()
+                logger.info(f"Performed TOTP login action with code: {totp_code}")
+                self.delay_loading()
+            else:
+                logger.info("Need to handle TOTP, press any key to continue")
+                input()
+
+        logger.info("Performed verification code login action")
+
+        if self.is_logged():
+            logger.info("Login Success")
+            self.update_storage()
+            return True
+
+    def is_logged(self):
+        return  "本地密码" not in self.driver.page_source
 
     def close(self):
         self.driver.quit()
@@ -120,14 +241,28 @@ class ATrustLogin:
     def __enter__(self):
         return self
 
+    def update_storage(self):
+        data = ATrustLoginStorage(
+            cookies=self.driver.get_cookies(),
+            local_storage=self.driver.execute_script("return window.localStorage")
+        )
+
+        # save with pickle
+        with open(os.path.join(self.data_dir, "ATrustLoginStorage.pkl"), "wb") as f:
+            pickle.dump(data, f)
+
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
-def main(portal_address="https://61.150.47.8/portal/#/login", username="your_username", password="your_password", totp_key=None, data_dir="data"):
+def main(portal_address, username, password, totp_key=None, data_dir="./data", cookie_tid=None, cookie_sig=None):
     logger.info("Opening Web Browser")
 
     # 创建ATrustLogin对象
-    ATrustLogin(data_dir=data_dir).login(portal_address=portal_address, username=username, password=password, totp_key=totp_key)
+    at = ATrustLogin(data_dir=data_dir, portal_address=portal_address, cookie_tid=cookie_tid, cookie_sig=cookie_sig)
+
+    if at.login(username=username, password=password, totp_key=totp_key) is True:
+        at.delay_loading()
+        at.delay_loading()
 
 if __name__ == "__main__":
     from fire import Fire
