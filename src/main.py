@@ -1,5 +1,6 @@
 import os.path
 import pickle
+import platform
 import time
 from typing import Dict, List, Any
 from urllib.parse import urlparse
@@ -20,10 +21,12 @@ class ATrustLoginStorage(BaseModel):
     local_storage: Dict[str, Any]
 
 class ATrustLogin:
-    def __init__(self, portal_address, data_dir="data", cookie_tid=None, cookie_sig=None):
+    def __init__(self, portal_address, driver_path=None, driver_type=None, data_dir="data", cookie_tid=None, cookie_sig=None, interactive=False):
+        self.initialized = False
         if not os.path.exists("data"):
             os.makedirs("data", exist_ok=True)
         self.data_dir = data_dir
+        self.interactive = interactive
         self.portal_address = portal_address
         self.portal_host = urlparse(portal_address).hostname
         self.cookie_tid = cookie_tid
@@ -41,9 +44,18 @@ class ATrustLogin:
 
         self.options.add_experimental_option("prefs", {"intl.accept_languages": "zh-CN"})
 
+        if driver_type is None:
+            system = platform.system()
+            if system == "Windows":
+                driver_type = "edge"
+            else:
+                driver_type = "chrome"
+
+
         # 初始化Edge Driver
-        service = Service()
-        self.driver = webdriver.Edge(service=service, options=self.options)
+        service = Service(driver_path)
+        self.driver = webdriver.Edge(service=service, options=self.options) if driver_type == "edge" else webdriver.Chrome(service=service, options=self.options)
+
         self.wait = WebDriverWait(self.driver, 10)
 
     # 打开默认的portal地址并等待sangfor_main_auth_container出现
@@ -177,11 +189,22 @@ class ATrustLogin:
                 "path": "/"
             })
 
-    def login(self, username, password, totp_key, **kwargs):
-        self.open_portal()
-        self.delay_loading()
+    def require_interact(self):
+        if self.interactive:
+            input("Press any key to continue")
+        else:
+            raise Exception("User Interact required")
 
-        self.load_storage()
+    def init(self):
+        if not self.initialized:
+            self.open_portal()
+            self.delay_loading()
+            self.load_storage()
+            self.initialized = True
+
+    def login(self, username, password, totp_key, **kwargs):
+        self.init()
+
         if self.is_logged():
             logger.info("Already logged in")
             return True
@@ -201,7 +224,7 @@ class ATrustLogin:
                 return
             else:
                 logger.warning("Need to handle captcha, press any key to continue")
-                input()
+                self.require_interact()
 
         if "TOTP" in self.driver.page_source and "二次认证" in self.driver.page_source:
             if totp_key is not None:
@@ -223,7 +246,7 @@ class ATrustLogin:
                 self.delay_loading()
             else:
                 logger.info("Need to handle TOTP, press any key to continue")
-                input()
+                self.require_interact()
 
         logger.info("Performed verification code login action")
 
@@ -254,15 +277,25 @@ class ATrustLogin:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
-def main(portal_address, username, password, totp_key=None, data_dir="./data", cookie_tid=None, cookie_sig=None):
+def main(portal_address, username, password, totp_key=None, cookie_tid=None, cookie_sig=None, keepalive=180, data_dir="./data", interactive=False):
     logger.info("Opening Web Browser")
 
     # 创建ATrustLogin对象
-    at = ATrustLogin(data_dir=data_dir, portal_address=portal_address, cookie_tid=cookie_tid, cookie_sig=cookie_sig)
+    at = ATrustLogin(data_dir=data_dir, portal_address=portal_address, cookie_tid=cookie_tid, cookie_sig=cookie_sig, interactive=interactive)
+    at.init()
 
-    if at.login(username=username, password=password, totp_key=totp_key) is True:
-        at.delay_loading()
-        at.delay_loading()
+    while True:
+        if not at.is_logged():
+            if at.login(username=username, password=password, totp_key=totp_key) is True:
+                at.delay_loading()
+                at.delay_loading()
+
+        if keepalive <= 0:
+            exit(0)
+        else:
+            time.sleep(keepalive)
+            at.driver.refresh()
+            at.delay_loading()
 
 if __name__ == "__main__":
     from fire import Fire
