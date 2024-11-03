@@ -88,7 +88,13 @@ docker run -it --rm -e ATRUST_OPTS='--portal_address="门户地址" --username=�
 
 cookie_sig 和 cookie_tid 可以不必设置，如果不设置，首次登录会遇到验证码，但是可以通过 VNC 远程连接服务器（VNC 端口 5901 ），手动输入验证码，然后程序会自动保存 cookie，之后就不会再遇到验证码了。
 
-shm 大小不建议小于 256M，否则可能导致浏览器崩溃。
+注意：**此命令默认创建的是临时容器**！容器停止或系统重启后就会删除！如果需要保存数据并且开机自动启动，请将 `--rm` 替换为 `--restart unless-stopped`。
+
+默认带有每隔 `200` 秒的刷新登录保活机制，如果不需要此功能，可以在 `ATRUST_OPTS` 中添加 `--keepalive 0` 参数。也可以通过 `--keepalive` 参数设置保活时间，单位为秒。即 `docker run -it -e ATRUST_OPTS='--keepalive 0 ...其他参数' ...其他参数 kenvix/atrust-autologin:latest`
+
+如果还需要发包保活功能，请添加 Docker `PING_ADDR` 和 `PING_INTERVAL` 环境变量，具体[参见此处](https://github.com/docker-easyconnect/docker-easyconnect/blob/master/doc/usage.md)。指定的服务器地址必须是 VPN 可到达的，例如 `docker run -it -e PING_ADDR=172.20.0.1 -e PING_INTERVAL=200 ...其他参数`。
+
+`--shm-size 256m` 参数指定的 shm 大小不建议小于 256M，否则可能导致浏览器崩溃。
 
 Docker 容器基于 [docker-easyconnect](https://github.com/docker-easyconnect/docker-easyconnect) 构建，在此表达感谢。其他的 Docker 参数也可以在这里找到。
 

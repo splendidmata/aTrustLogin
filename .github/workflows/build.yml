@@ -90,7 +90,8 @@ jobs:
           
           echo "Upload ModelScope 2: Upload to ModelScope"
           git lfs install
-          GIT_LFS_SKIP_SMUDGE=1 git clone https://oauth2:${{ secrets.MODELSCOPE_TOKEN }}@www.modelscope.cn/kenvix/aTrustLoginRepo.git aTrustLoginRepo
+          export GIT_LFS_SKIP_SMUDGE=1
+          git clone https://oauth2:${{ secrets.MODELSCOPE_TOKEN }}@www.modelscope.cn/kenvix/aTrustLoginRepo.git aTrustLoginRepo
           rm -f aTrustLoginRepo/${{ env.IMAGE_NAME }}-amd64.tar.xz
           rm -f aTrustLoginRepo/${{ env.IMAGE_NAME }}-arm64.tar.xz
           mv ./${{ env.IMAGE_NAME }}-amd64.tar.xz aTrustLoginRepo/

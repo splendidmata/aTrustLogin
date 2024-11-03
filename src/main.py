@@ -31,6 +31,9 @@ class ATrustLogin:
         self.cookie_tid = cookie_tid
         self.cookie_sig = cookie_sig
 
+        self.must_be_logged_keywords = ['app_center', 'user_info', 'app_apply', 'device_manage']
+        self.must_not_logged_keywords = ['login', 'totpAuth', 'captcha']
+
         if driver_type is None:
             system = platform.system()
             if system == "Windows":
@@ -288,6 +291,21 @@ class ATrustLogin:
             return True
 
     def is_logged(self):
+        """
+        检查是否已经登录
+        :return: None if not sure, True if logged, False if not logged
+        """
+
+        if self.driver.current_url.startswith('about:'):
+            return None
+
+        url = urlparse(self.driver.current_url)
+
+        if any(keyword in url.fragment for keyword in self.must_be_logged_keywords):
+            return True
+        if any(keyword in url.fragment for keyword in self.must_not_logged_keywords):
+            return False
+
         return "工作台" in self.driver.page_source and "本地密码" not in self.driver.page_source
 
     def close(self):
@@ -338,6 +356,8 @@ def main(portal_address, username, password, totp_key=None, cookie_tid=None, coo
         try:
             if not at.is_logged():
                 logger.info("Session lost. Trying to login again ...")
+                at.open_portal()
+                at.delay_loading()
                 if at.login(username=username, password=password, totp_key=totp_key) is True:
                     at.delay_loading()
                     at.delay_loading()
