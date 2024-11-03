@@ -29,18 +29,9 @@ Docker 方法只适用于 Linux 平台，但无需安装配置任何依赖，全
 国外地址：
 
 ```shell
-# 如果下载缓慢，可以替换为国内地址 （见后文）
 git clone --depth=1 https://github.com/kenvix/aTrustLogin.git aTrustLogin
 cd aTrustLogin/src
 pip install -r requirements.txt
-```
-
-国内地址：
-
-```shell
-git clone https://www.modelscope.cn/kenvix/aTrustLogin.git
-cd aTrustLogin/src
-pip install -r requirements.txt -i https://mirrors.ustc.edu.cn/pypi/web/simple
 ```
 
 然后按照 “程序运行参数说明” 章节启动程序即可。
@@ -90,5 +81,6 @@ Docker 容器基于 [docker-easyconnect](https://github.com/docker-easyconnect/d
 1. 打开 aTrust 登录网页，登录并输入验证码
 2. 在浏览器中打开开发者工具（F12），切换到 Application（应用程序） 选项卡
 3. 在左侧导航栏中找到 Cookies，点击对应的网站地址
-4. 找到名为 `tid` 和 `sig` 的两个 Cookie，将其值填入程序的 `--cookie_tid` 和 `--cookie_sig` 参数中
+4. 找到名为 `tid` 和 `tid.sig` 的两个 Cookie，将其值填入程序的 `--cookie_tid` 和 `--cookie_sig` 参数中
 
+![Cookie](doc/cookie.webp)

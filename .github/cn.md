@@ -7,3 +7,11 @@ git clone https://www.modelscope.cn/kenvix/aTrustLogin.git
 cd aTrustLogin/src
 pip install -r requirements.txt -i https://mirrors.ustc.edu.cn/pypi/web/simple
 ```
+
+Docker 镜像如果下载缓慢，可以替换为国内地址。
+
+国内地址：
+
+```
+
+```
