@@ -11,8 +11,7 @@ from loguru import logger
 from pydantic import BaseModel
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.edge.options import Options
-from selenium.webdriver.edge.service import Service
+
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -22,28 +21,16 @@ class ATrustLoginStorage(BaseModel):
     local_storage: Dict[str, Any]
 
 class ATrustLogin:
-    def __init__(self, portal_address, driver_path=None, driver_type=None, data_dir="data", cookie_tid=None, cookie_sig=None, interactive=False):
+    def __init__(self, portal_address, driver_path=None, browser_path=None, driver_type=None, data_dir="data", cookie_tid=None, cookie_sig=None, interactive=False):
         self.initialized = False
-        if not os.path.exists("data"):
-            os.makedirs("data", exist_ok=True)
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir, exist_ok=True)
         self.data_dir = data_dir
         self.interactive = interactive
         self.portal_address = portal_address
         self.portal_host = urlparse(portal_address).hostname
         self.cookie_tid = cookie_tid
         self.cookie_sig = cookie_sig
-
-        # 配置Edge Driver选项
-        self.options = Options()
-
-        # self.options.add_argument(f'--user-data-dir="{data_dir}"')
-        self.options.add_argument(f'--profile-directory=ATrustLogin')
-        # options.add_argument("--start-maximized")
-        self.options.add_argument("--ignore-certificate-errors")
-        self.options.add_argument("--ignore-ssl-errors")
-        self.options.add_argument("--lang=zh-CN")
-
-        self.options.add_experimental_option("prefs", {"intl.accept_languages": "zh-CN"})
 
         if driver_type is None:
             system = platform.system()
@@ -52,10 +39,41 @@ class ATrustLogin:
             else:
                 driver_type = "chrome"
 
+        logger.debug(f"Driver: {driver_type}: {driver_path}")
+
+        if driver_type == "edge":
+            from selenium.webdriver.edge.options import Options
+            from selenium.webdriver.edge.service import Service
+        else :
+            from selenium.webdriver.chrome.service import Service
+            from selenium.webdriver.chrome.options import Options
+
+         # 配置Edge Driver选项
+        self.options = Options()
+
+        # self.options.add_argument(f'--user-data-dir="{data_dir}"')
+        self.options.add_argument(f'--profile-directory=ATrustLogin')
+        # options.add_argument("--start-maximized")
+        self.options.add_argument("--ignore-certificate-errors")
+        self.options.add_argument("--ignore-ssl-errors")
+        self.options.add_argument("--no-sandbox")
+        self.options.add_argument("--lang=zh-CN")
+        self.options.add_argument("--disable-gpu")
+        self.options.add_argument("--disable-extensions")
+        self.options.add_argument("--window-size=896,672")
+
+        self.options.add_experimental_option("prefs", {"intl.accept_languages": "zh-CN"})
+
+        if browser_path is not None:
+            self.options.binary_location = browser_path
 
         # 初始化Edge Driver
         service = Service(driver_path)
-        self.driver = webdriver.Edge(service=service, options=self.options) if driver_type == "edge" else webdriver.Chrome(service=service, options=self.options)
+
+        if driver_type == "edge":
+            self.driver = webdriver.Edge(service=service, options=self.options)
+        else :
+            self.driver = webdriver.Chrome(service=service, options=self.options)
 
         self.wait = WebDriverWait(self.driver, 10)
 
@@ -106,7 +124,7 @@ class ATrustLogin:
             element = self.driver.find_element(By.XPATH, "//div[contains(@class, 'server-name') and contains(text(), '本地密码')]")
             if element.is_displayed():
                 self.delay_input()
-                element.click()
+                self.scroll_and_click(element)
         except:
             pass
 
@@ -121,11 +139,11 @@ class ATrustLogin:
             password_input = input_fields[1]
 
             # 输入用户名和密码
-            self.wait.until(EC.element_to_be_clickable(username_input)).click()
+            self.scroll_and_click(self.wait.until(EC.element_to_be_clickable(username_input)))
             self.delay_input()
             username_input.send_keys(username)
 
-            self.wait.until(EC.element_to_be_clickable(password_input)).click()
+            self.scroll_and_click(self.wait.until(EC.element_to_be_clickable(password_input)))
             self.delay_input()
             password_input.send_keys(password)
 
@@ -133,7 +151,7 @@ class ATrustLogin:
             # 检查checkbox是否已经被选中
             if not checkbox.is_selected():
                 self.delay_input()
-                checkbox.click()  # 如果没有选中，就点击选中
+                self.scroll_and_click(checkbox)  # 如果没有选中，就点击选中
 
             logger.debug("Filled username and password")
         else:
@@ -148,7 +166,7 @@ class ATrustLogin:
         for button in buttons:
             button_text = button.text.lower()
             if "登录" in button_text or "login" in button_text or "log in" in button_text:
-                button.click()
+                self.scroll_and_click(button)
                 return
         logger.info("未找到符合条件的登录按钮")
 
@@ -170,6 +188,14 @@ class ATrustLogin:
             logger.info("未找到存储的数据")
 
         self.set_cli_cookie(force=False)
+
+    def scroll_to(self, element):
+        self.driver.execute_script("arguments[0].scrollIntoView();", element)
+
+    def scroll_and_click(self, element):
+        self.driver.execute_script("arguments[0].scrollIntoView();", element)
+        element.click()
+        return element
 
     def set_cli_cookie(self, force=False):
         if force or not self.driver.get_cookie("tid"):
@@ -235,14 +261,14 @@ class ATrustLogin:
                 logger.info(f"TOTP code: {totp_code}")
                 totp_input = self.driver.find_element(By.XPATH, "//input[contains(@class, 'totp')]")
 
-                self.wait.until(EC.element_to_be_clickable(totp_input)).click()
+                self.scroll_and_click(self.wait.until(EC.element_to_be_clickable(totp_input)))
                 self.delay_input()
                 totp_input.send_keys(totp_code)
 
                 submit_button = self.driver.find_element(By.CSS_SELECTOR, "button[type='submit'], input[type='submit']")
                 self.wait.until(EC.element_to_be_clickable(submit_button))
                 self.delay_input()
-                submit_button.click()
+                self.scroll_and_click(submit_button)
                 logger.info(f"Performed TOTP login action with code: {totp_code}")
                 self.delay_loading()
             else:
@@ -257,7 +283,7 @@ class ATrustLogin:
             return True
 
     def is_logged(self):
-        return  "本地密码" not in self.driver.page_source
+        return "工作台" in self.driver.page_source and "本地密码" not in self.driver.page_source
 
     def close(self):
         self.driver.quit()
@@ -292,14 +318,14 @@ class ATrustLogin:
                     logger.info(f"aTrust Port {port} is not yet being listened on. Waiting for aTrust start ...")
                     ATrustLogin.delay_loading()
 
-def main(portal_address, username, password, totp_key=None, cookie_tid=None, cookie_sig=None, keepalive=180, data_dir="./data", interactive=False, wait_atrust=True):
+def main(portal_address, username, password, totp_key=None, cookie_tid=None, cookie_sig=None, keepalive=200, data_dir="./data", driver_type=None, driver_path=None, browser_path=None, interactive=False, wait_atrust=True):
     logger.info("Opening Web Browser")
 
     if wait_atrust:
         ATrustLogin.wait_for_port(54631)
 
     # 创建ATrustLogin对象
-    at = ATrustLogin(data_dir=data_dir, portal_address=portal_address, cookie_tid=cookie_tid, cookie_sig=cookie_sig, interactive=interactive)
+    at = ATrustLogin(data_dir=data_dir, portal_address=portal_address, cookie_tid=cookie_tid, cookie_sig=cookie_sig, driver_type=driver_type, driver_path=driver_path, browser_path=browser_path, interactive=interactive)
 
     at.init()
 
@@ -310,10 +336,11 @@ def main(portal_address, username, password, totp_key=None, cookie_tid=None, coo
                 at.delay_loading()
 
         if keepalive <= 0:
+            at.close()
             exit(0)
         else:
             time.sleep(keepalive)
-            at.driver.refresh()
+            at.open_portal()
             at.delay_loading()
 
 if __name__ == "__main__":

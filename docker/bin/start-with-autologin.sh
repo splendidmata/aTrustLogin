@@ -1,5 +1,5 @@
-#!/bin/sh
+#!/bin/bash
 
-python3 /opt/atrust-autologin/main.py --interactive=True --wait_atrust=True $ATRUST_OPTS &
+start-with-autologin-actual.sh &
 
 exec start.sh
