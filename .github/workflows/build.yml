@@ -76,13 +76,17 @@ jobs:
           
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest --platform=linux/amd64
           docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ env.IMAGE_NAME }}-amd64
-          docker save ${{ env.IMAGE_NAME }}-amd64 | xz -c > ./${{ env.IMAGE_NAME }}-amd64.tar.xz
+          
+          echo "Save docker image to ./${{ env.IMAGE_NAME }}-amd64.tar.xz"
+          docker save ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}-amd64 | xz -T0 -c -5 > ./${{ env.IMAGE_NAME }}-amd64.tar.xz
           
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest --platform=linux/arm64
           docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ env.IMAGE_NAME }}-arm64
-          docker save ${{ env.IMAGE_NAME }}-arm64 | xz -c > ./${{ env.IMAGE_NAME }}-arm64.tar.xz
           
-          ls -al ./build/output
+          echo "Save docker image to ./${{ env.IMAGE_NAME }}-arm64.tar.xz"
+          docker save ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}-arm64 | xz -T0 -c -5 > ./${{ env.IMAGE_NAME }}-arm64.tar.xz
+          
+          ls -al .
           
           echo "Upload ModelScope 2: Upload to ModelScope"
           git lfs install
@@ -91,7 +95,10 @@ jobs:
           rm -f aTrustLoginRepo/${{ env.IMAGE_NAME }}-arm64.tar.xz
           mv ./${{ env.IMAGE_NAME }}-amd64.tar.xz aTrustLoginRepo/
           mv ./${{ env.IMAGE_NAME }}-arm64.tar.xz aTrustLoginRepo/
+          
           cd aTrustLoginRepo
+          ls -al .
+          
           git lfs track "*.tar.xz"
           git add .gitattributes
           git add ${{ env.IMAGE_NAME }}-amd64.tar.xz
