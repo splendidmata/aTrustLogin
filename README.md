@@ -68,6 +68,10 @@ python main.py --portal_address "https://example.com" --username "your_username"
 docker run -it --rm -e ATRUST_OPTS='--portal_address="门户地址" --username=用户名 --password=密码 --totp_key=TOTP密钥 --cookie_tid "your_cookie_tid" --cookie_sig "your_cookie_sig" --device /dev/net/tun --cap-add NET_ADMIN -ti -e PASSWORD=xxxx -e URLWIN=1 -v $HOME/.atrust-data:/root -p 127.0.0.1:5901:5901 -p 127.0.0.1:8888:8888 --sysctl net.ipv4.conf.default.route_localnet=1 --shm-size 256m  kenvix/atrust-autologin:latest
 ```
 
+Docker 镜像如果下载缓慢，可以替换为国内地址。下载后使用 `xz -dc 文件名.tar.xz | docker load` 命令导入镜像。
+
+国内地址：https://modelscope.cn/models/kenvix/aTrustLoginRepo
+
 cookie_sig 和 cookie_tid 可以不必设置，如果不设置，首次登录会遇到验证码，但是可以通过 VNC 远程连接服务器（VNC 端口 5901 ），手动输入验证码，然后程序会自动保存 cookie，之后就不会再遇到验证码了。
 
 shm 大小不建议小于 256M，否则可能导致浏览器崩溃。

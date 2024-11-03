@@ -68,3 +68,37 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Upload ModelScope
+        run: |
+          echo "Upload ModelScope 1: Save docker image"
+          cd ./build/output
+          
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest --platform=linux/amd64
+          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ env.IMAGE_NAME }}-amd64
+          docker save ${{ env.IMAGE_NAME }}-amd64 | xz -c > ${GITHUB_WORKSPACE}/${{ env.IMAGE_NAME }}-amd64.tar.xz
+          
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest --platform=linux/arm64
+          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ env.IMAGE_NAME }}-arm64
+          docker save ${{ env.IMAGE_NAME }}-arm64 | xz -c > ${GITHUB_WORKSPACE}/${{ env.IMAGE_NAME }}-arm64.tar.xz
+          
+          ls -al ./build/output
+          
+          echo "Upload ModelScope 2: Upload to ModelScope"
+          git lfs install
+          GIT_LFS_SKIP_SMUDGE=1 git clone https://oauth2:${{ secrets.MODELSCOPE_TOKEN }}@www.modelscope.cn/kenvix/aTrustLoginRepo.git aTrustLoginRepo
+          rm -f aTrustLoginRepo/${{ env.IMAGE_NAME }}-amd64.tar.xz
+          rm -f aTrustLoginRepo/${{ env.IMAGE_NAME }}-arm64.tar.xz
+          mv ${{ GITHUB_WORKSPACE }}/${{ env.IMAGE_NAME }}-amd64.tar.xz aTrustLoginRepo/
+          mv ${{ GITHUB_WORKSPACE }}/${{ env.IMAGE_NAME }}-arm64.tar.xz aTrustLoginRepo/
+          cd aTrustLoginRepo
+          git lfs track "*.tar.xz"
+          git add .gitattributes
+          git add ${{ env.IMAGE_NAME }}-amd64.tar.xz
+          git add ${{ env.IMAGE_NAME }}-arm64.tar.xz
+      
+          git config --global user.name "Kenvix CI Auto Commit"
+          git config --global user.email "ci@kenvix.com"
+      
+          git commit -m "Upload docker image"
+          git push
