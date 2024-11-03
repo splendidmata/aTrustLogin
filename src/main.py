@@ -11,7 +11,6 @@ from loguru import logger
 from pydantic import BaseModel
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -81,6 +80,7 @@ class ATrustLogin:
     def open_portal(self):
         self.driver.get(self.portal_address)
 
+    def wait_login_page(self):
         # 使用显式等待sangfor_main_auth_container元素出现
         self.wait.until(EC.presence_of_element_located((By.ID, "sangfor_main_auth_container")))
         self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "login-panel")))
@@ -225,6 +225,7 @@ class ATrustLogin:
     def init(self):
         if not self.initialized:
             self.open_portal()
+            self.wait_login_page()
             self.delay_loading()
             self.load_storage()
             self.initialized = True
@@ -330,17 +331,22 @@ def main(portal_address, username, password, totp_key=None, cookie_tid=None, coo
     at.init()
 
     while True:
-        if not at.is_logged():
-            if at.login(username=username, password=password, totp_key=totp_key) is True:
-                at.delay_loading()
-                at.delay_loading()
+        try:
+            if not at.is_logged():
+                if at.login(username=username, password=password, totp_key=totp_key) is True:
+                    at.delay_loading()
+                    at.delay_loading()
 
-        if keepalive <= 0:
-            at.close()
-            exit(0)
-        else:
-            time.sleep(keepalive)
-            at.open_portal()
+            if keepalive <= 0:
+                at.close()
+                exit(0)
+            else:
+                time.sleep(keepalive)
+                at.open_portal()
+                at.delay_loading()
+        except Exception as e:
+            logger.error("An error occurred when trying to login, retrying ...")
+            logger.exception(e)
             at.delay_loading()
 
 if __name__ == "__main__":
