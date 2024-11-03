@@ -141,10 +141,12 @@ class ATrustLogin:
             # 输入用户名和密码
             self.scroll_and_click(self.wait.until(EC.element_to_be_clickable(username_input)))
             self.delay_input()
+            username_input.clear()
             username_input.send_keys(username)
 
             self.scroll_and_click(self.wait.until(EC.element_to_be_clickable(password_input)))
             self.delay_input()
+            password_input.clear()
             password_input.send_keys(password)
 
             checkbox = main_auth_div.find_element(By.XPATH, "//input[@type='checkbox']")
@@ -244,6 +246,8 @@ class ATrustLogin:
         logger.info("Performed basic login action")
 
         self.delay_loading()
+        logger.debug("Checking captcha ...")
+
         if "图形校验码" in self.driver.page_source:
             if 'is_retried' not in kwargs:
                 self.set_cli_cookie(force=True)
@@ -333,6 +337,7 @@ def main(portal_address, username, password, totp_key=None, cookie_tid=None, coo
     while True:
         try:
             if not at.is_logged():
+                logger.info("Session lost. Trying to login again ...")
                 if at.login(username=username, password=password, totp_key=totp_key) is True:
                     at.delay_loading()
                     at.delay_loading()
