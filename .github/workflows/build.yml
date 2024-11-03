@@ -76,11 +76,11 @@ jobs:
           
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest --platform=linux/amd64
           docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ env.IMAGE_NAME }}-amd64
-          docker save ${{ env.IMAGE_NAME }}-amd64 | xz -c > ${GITHUB_WORKSPACE}/${{ env.IMAGE_NAME }}-amd64.tar.xz
+          docker save ${{ env.IMAGE_NAME }}-amd64 | xz -c > ./${{ env.IMAGE_NAME }}-amd64.tar.xz
           
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest --platform=linux/arm64
           docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ env.IMAGE_NAME }}-arm64
-          docker save ${{ env.IMAGE_NAME }}-arm64 | xz -c > ${GITHUB_WORKSPACE}/${{ env.IMAGE_NAME }}-arm64.tar.xz
+          docker save ${{ env.IMAGE_NAME }}-arm64 | xz -c > ./${{ env.IMAGE_NAME }}-arm64.tar.xz
           
           ls -al ./build/output
           
@@ -89,8 +89,8 @@ jobs:
           GIT_LFS_SKIP_SMUDGE=1 git clone https://oauth2:${{ secrets.MODELSCOPE_TOKEN }}@www.modelscope.cn/kenvix/aTrustLoginRepo.git aTrustLoginRepo
           rm -f aTrustLoginRepo/${{ env.IMAGE_NAME }}-amd64.tar.xz
           rm -f aTrustLoginRepo/${{ env.IMAGE_NAME }}-arm64.tar.xz
-          mv ${{ GITHUB_WORKSPACE }}/${{ env.IMAGE_NAME }}-amd64.tar.xz aTrustLoginRepo/
-          mv ${{ GITHUB_WORKSPACE }}/${{ env.IMAGE_NAME }}-arm64.tar.xz aTrustLoginRepo/
+          mv ./${{ env.IMAGE_NAME }}-amd64.tar.xz aTrustLoginRepo/
+          mv ./${{ env.IMAGE_NAME }}-arm64.tar.xz aTrustLoginRepo/
           cd aTrustLoginRepo
           git lfs track "*.tar.xz"
           git add .gitattributes
