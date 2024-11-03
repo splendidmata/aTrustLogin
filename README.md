@@ -62,15 +62,29 @@ python main.py --portal_address "https://example.com" --username "your_username"
 
 ### Docker 方法
 
+首先使用下面的命令拉取镜像：
+
+```shell
+# 拉取最新版本（国外地址，如果下载缓慢请使用国内地址）
+docker pull kenvix/atrust-autologin:latest
+```
+
+Docker 镜像如果下载缓慢，可以替换为国内地址。下载后使用 `xz -dc 文件名.tar.xz | docker load` 命令导入镜像。
+
+国内地址请参见：https://modelscope.cn/models/kenvix/aTrustLoginRepo/files
+
+```shell
+# 使用国内地址拉取镜像
+# 其中 amd64 表示架构x86-64，如果是 ARM64 请替换为 arm64
+wget https://modelscope.cn/models/kenvix/aTrustLoginRepo/resolve/master/docker-atrust-autologin-amd64.tar.xz -O - | xz -dc | docker load
+docker tag kenvix/docker-atrust-autologin:amd64 kenvix/docker-atrust-autologin:latest
+```
+
 阅读“程序运行参数说明” ，然后请将程序参数填入 `ATRUST_OPTS` 环境变量中，然后运行 Docker 容器即可。
 
 ```shell
 docker run -it --rm -e ATRUST_OPTS='--portal_address="门户地址" --username=用户名 --password=密码 --totp_key=TOTP密钥 --cookie_tid "your_cookie_tid" --cookie_sig "your_cookie_sig" --device /dev/net/tun --cap-add NET_ADMIN -ti -e PASSWORD=xxxx -e URLWIN=1 -v $HOME/.atrust-data:/root -p 127.0.0.1:5901:5901 -p 127.0.0.1:8888:8888 --sysctl net.ipv4.conf.default.route_localnet=1 --shm-size 256m  kenvix/atrust-autologin:latest
 ```
-
-Docker 镜像如果下载缓慢，可以替换为国内地址。下载后使用 `xz -dc 文件名.tar.xz | docker load` 命令导入镜像。
-
-国内地址：https://modelscope.cn/models/kenvix/aTrustLoginRepo
 
 cookie_sig 和 cookie_tid 可以不必设置，如果不设置，首次登录会遇到验证码，但是可以通过 VNC 远程连接服务器（VNC 端口 5901 ），手动输入验证码，然后程序会自动保存 cookie，之后就不会再遇到验证码了。
 
@@ -85,6 +99,6 @@ Docker 容器基于 [docker-easyconnect](https://github.com/docker-easyconnect/d
 1. 打开 aTrust 登录网页，登录并输入验证码
 2. 在浏览器中打开开发者工具（F12），切换到 Application（应用程序） 选项卡
 3. 在左侧导航栏中找到 Cookies，点击对应的网站地址
-4. 找到名为 `tid` 和 `tid.sig` 的两个 Cookie，将其值填入程序的 `--cookie_tid` 和 `--cookie_sig` 参数中
+4. 找到名为 `tid` 和 `tid.sig` 的两个 Cookie，将其“值”复制下来，填入程序的 `--cookie_tid` 和 `--cookie_sig` 参数中即可。
 
 ![Cookie](doc/cookie.webp)

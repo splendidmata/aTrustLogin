@@ -78,13 +78,13 @@ jobs:
           docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:amd64
           
           echo "Save docker image to ./${{ env.IMAGE_NAME }}-amd64.tar.xz"
-          docker save ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:amd64 | xz -T0 -c -5 > ./${{ env.IMAGE_NAME }}-amd64.tar.xz
+          docker save ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:amd64 | xz -T0 -c -5 -v > ./${{ env.IMAGE_NAME }}-amd64.tar.xz
           
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest --platform=linux/arm64
           docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:arm64
           
           echo "Save docker image to ./${{ env.IMAGE_NAME }}-arm64.tar.xz"
-          docker save ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:arm64 | xz -T0 -c -5 > ./${{ env.IMAGE_NAME }}-arm64.tar.xz
+          docker save ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:arm64 | xz -T0 -c -5 -v > ./${{ env.IMAGE_NAME }}-arm64.tar.xz
           
           ls -al .
           
