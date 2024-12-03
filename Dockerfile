@@ -27,6 +27,7 @@ RUN echo "Begin build" && \
     echo "[global]" > ~/.pip/pip.conf && \
     echo "index-url = https://mirrors.ustc.edu.cn/pypi/web/simple" >> ~/.pip/pip.conf && \
     chmod +x /bin/start-with-autologin.sh && \
+    chmod +x /bin/start-with-autologin-actual.sh && \
     apt-get update && \
     apt-get install -y apt-utils && \
     apt-get install -y chromium chromium-driver chromium-l10n python3 python3-pip && \
