@@ -74,18 +74,27 @@ jobs:
           echo "Upload ModelScope 1: Save docker image"
           cd ./build/output
           
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest --platform=linux/amd64
-          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:amd64
+          # 第一组并行：保存 Docker 镜像为 amd64
+          (
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest --platform=linux/amd64
+            docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:amd64
+            
+            echo "Save docker image to ./${{ env.IMAGE_NAME }}-amd64.tar.xz"
+            docker save ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:amd64 | xz -T0 -c -9 -v > ./${{ env.IMAGE_NAME }}-amd64.tar.xz
+          ) &
+
+          # 第二组并行：拉取 Docker 镜像，标记为 arm64，保存为 .tar.xz 文件
+          (
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest --platform=linux/arm64
+            docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:arm64
+            
+            echo "Save docker image to ./${{ env.IMAGE_NAME }}-arm64.tar.xz"
+            docker save ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:arm64 | xz -T0 -c -9 -v > ./${{ env.IMAGE_NAME }}-arm64.tar.xz
+          ) &
           
-          echo "Save docker image to ./${{ env.IMAGE_NAME }}-amd64.tar.xz"
-          docker save ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:amd64 | xz -T0 -c -5 -v > ./${{ env.IMAGE_NAME }}-amd64.tar.xz
-          
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest --platform=linux/arm64
-          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:arm64
-          
-          echo "Save docker image to ./${{ env.IMAGE_NAME }}-arm64.tar.xz"
-          docker save ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:arm64 | xz -T0 -c -5 -v > ./${{ env.IMAGE_NAME }}-arm64.tar.xz
-          
+          # 等待所有后台任务完成
+          wait
+
           ls -al .
           
           echo "Upload ModelScope 2: Upload to ModelScope"
