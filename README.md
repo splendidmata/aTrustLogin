@@ -1,5 +1,7 @@
 # aTrustLogin
 
+[English Version](/README.en.md)
+
 本项目提供了一个自动化的深信服 Sangfor aTrust 登录的解决方案，无需人工干预即可实现 VPN 联网。项目功能如下：
 
 - 自动打开 aTrust Web 登录页面
@@ -108,3 +110,16 @@ Docker 容器基于 [docker-easyconnect](https://github.com/docker-easyconnect/d
 4. 找到名为 `tid` 和 `tid.sig` 的两个 Cookie，将其“值”复制下来，填入程序的 `--cookie_tid` 和 `--cookie_sig` 参数中即可。
 
 ![Cookie](doc/cookie.webp)
+
+## 如何与 FRP 结合使用
+
+Frp 是一套内网穿透工具，可以将内网服务映射出去。如果你的 VPN 客户端在内网，可以使用 Frp 将你的本地服务结合 ATrust 映射到隧道另一侧的服务器上。
+
+由于 Frp 更新速度非常快且各个版本之间不兼容，本项目无法直接提供带 Frp 版本的镜像，但是，您可以查看 frp 目录下的脚本，实现自动登录并映射端口到 VPN 隧道另一侧的服务器上。
+
+具体操作方法：
+
+1. 进入 frpc 目录，修改 `run.sh` 文件的 18、23、85 行
+2. 下载 frpc 发行版二进制文件，复制到 `frpc/frp` 下
+3. 运行 `run.sh` 脚本，即可自动创建、自动启动 Docker 镜像，实现自动登录并映射端口到隧道另一侧的服务器上
+4. 后续启动 Docker 容器均需要使用 `run.sh` 命令，不要使用 `docker start` 命令
