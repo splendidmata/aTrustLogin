@@ -29,6 +29,13 @@ for entry in "${PORTS[@]}"; do
     # 允许数据包通过 POSTROUTING
     iptables -t nat -A POSTROUTING -p tcp -d "$remote_ip" --dport "$remote_port" -j MASQUERADE
     iptables -t nat -A POSTROUTING -p udp -d "$remote_ip" --dport "$remote_port" -j MASQUERADE
+    
+    # 设置 OUTPUT 规则，将流量从本地端口重定向到目标地址
+    iptables -t nat -A OUTPUT -p tcp --dport "$local_port" -j DNAT --to-destination "$remote_ip:$remote_port"
+    iptables -t nat -A OUTPUT -p udp --dport "$local_port" -j DNAT --to-destination "$remote_ip:$remote_port"
+
+    iptables -A INPUT -p tcp --dport "$local_port" -j ACCEPT
+    iptables -A INPUT -p udp --dport "$local_port" -j ACCEPT
 done
 
 echo "[Port forwarding] Port forwarding configuration completed"
