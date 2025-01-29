@@ -37,6 +37,7 @@ jobs:
         run: |
           echo "Prebuild shell"
           ls -al
+          ls -al ./docker/bin
           mkdir -p ./build/output || true
           ls -al ./build/output
 
