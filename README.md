@@ -10,6 +10,7 @@
 - 使用 Cookie 状态绕过验证码
 - KeepAlive 连接保活和掉线/登出重连
 - 支持 Windows、Linux，支持 x86-64 和 ARM64
+- (Docker) 支持端口转发，容器暴露端口然后自动转发到指定地址
 
 ## 使用方法
 本项目提供Docker方法和通用方法两种方法。
@@ -110,6 +111,16 @@ Docker 容器基于 [docker-easyconnect](https://github.com/docker-easyconnect/d
 4. 找到名为 `tid` 和 `tid.sig` 的两个 Cookie，将其“值”复制下来，填入程序的 `--cookie_tid` 和 `--cookie_sig` 参数中即可。
 
 ![Cookie](doc/cookie.webp)
+
+## (Docker) 如何访问、如何端口转发
+
+对于 Docker 容器，通过 Socks5 或 HTTP 代理访问内网网络。具体[参见此处](https://github.com/docker-easyconnect/docker-easyconnect/blob/master/doc/usage.md#%E4%BB%A3%E7%90%86%E6%9C%8D%E5%8A%A1)
+
+容器支持直接设置端口转发以便访问内网服务而不经过 Socks5 代理。例如，如果你的 VPN 客户端在内网，可以使用 Docker 容器将你的本地服务映射到隧道另一侧的服务器上。方法是，添加 Docker 参数环境变量 `FORWARD_PORTS` ，该变量是一组将要转发的端口列表，用,分隔，格式是 `本地端口:远程IP:远程IP`，例如 `FORWARD_PORTS=41301:172.29.1.85:11111,41302:172.29.1.85:7777` 表示监听本地端口 `41301` ，然后转发到 `172.29.1.85:11111` ，监听本地端口 `41302` ，然后转发到 `172.29.1.85:7777`。最终参数如下：
+
+```shell
+-e 'FORWARD_PORTS=41301:172.29.1.85:11111,41302:172.29.1.85:7777' -p 41301:41301 -p 41302:41302
+```
 
 ## 如何与 FRP 结合使用
 
