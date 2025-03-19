@@ -54,5 +54,5 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           # 给清单打上多个标签
           tags: |
-            splendidwrx/grocycompanionmata:${{ steps.date.outputs.today }}
-            splendidwrx/grocycompanionmata:latest
+            splendidwrx/atrust-autologin:${{ steps.date.outputs.today }}
+            splendidwrx/atrust-autologin:latest
